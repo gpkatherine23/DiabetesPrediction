@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diabetes Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .prediction-result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .prediction-positive {
+            background-color: #ffebee;
+            border: 1px solid #ef9a9a;
+        }
+        .prediction-negative {
+            background-color: #e8f5e9;
+            border: 1px solid #a5d6a7;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: #2196F3;
+            border-color: #2196F3;
+        }
+        .btn-primary:hover {
+            background-color: #1976D2;
+            border-color: #1976D2;
+        }
+        .btn-secondary {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4 text-center">Diabetes Risk Prediction</h1>
+        <p class="text-muted text-center mb-4">Enter your health information below to assess your diabetes risk.</p>
+
+        <form id="predictionForm" class="needs-validation" novalidate>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="gender" class="form-label">Gender</label>
+                    <select class="form-select" id="gender" required>
+                        <option value="">Choose...</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="age" class="form-label">Age</label>
+                    <input type="number" class="form-control" id="age" required min="0" max="120">
+                    <div class="form-text">Enter age in years</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="hypertension" class="form-label">Hypertension</label>
+                    <select class="form-select" id="hypertension" required>
+                        <option value="">Choose...</option>
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="heart_disease" class="form-label">Heart Disease</label>
+                    <select class="form-select" id="heart_disease" required>
+                        <option value="">Choose...</option>
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="smoking_history" class="form-label">Smoking History</label>
+                    <select class="form-select" id="smoking_history" required>
+                        <option value="">Choose...</option>
+                        <option value="never">Never</option>
+                        <option value="current">Current</option>
+                        <option value="former">Former</option>
+                        <option value="ever">Ever</option>
+                        <option value="not current">Not Current</option>
+                        <option value="Unknown">Unknown</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="bmi" class="form-label">BMI</label>
+                    <input type="number" class="form-control" id="bmi" required step="0.01" min="10" max="100">
+                    <div class="form-text">Body Mass Index (weight in kg / height in m²)</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="HbA1c_level" class="form-label">HbA1c Level</label>
+                    <input type="number" class="form-control" id="HbA1c_level" required step="0.1" min="3" max="9">
+                    <div class="form-text">Glycated hemoglobin level (%)</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="blood_glucose_level" class="form-label">Blood Glucose Level</label>
+                    <input type="number" class="form-control" id="blood_glucose_level" required min="80" max="300">
+                    <div class="form-text">Blood glucose level (mg/dL)</div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-center mt-4">
+                <button class="btn btn-primary" type="submit">Predict Risk</button>
+                <button class="btn btn-secondary" type="button" id="retrainButton">Retrain Model</button>
+            </div>
+        </form>
+
+        <div id="result" class="prediction-result"></div>
+    </div>
+
+    <script>
+        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                gender: document.getElementById('gender').value,
+                age: parseFloat(document.getElementById('age').value),
+                hypertension: parseInt(document.getElementById('hypertension').value),
+                heart_disease: parseInt(document.getElementById('heart_disease').value),
+                smoking_history: document.getElementById('smoking_history').value,
+                bmi: parseFloat(document.getElementById('bmi').value),
+                HbA1c_level: parseFloat(document.getElementById('HbA1c_level').value),
+                blood_glucose_level: parseFloat(document.getElementById('blood_glucose_level').value)
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+                const resultDiv = document.getElementById('result');
+                
+                if (result.error) {
+                    resultDiv.className = 'prediction-result prediction-error';
+                    resultDiv.innerHTML = `<h4>Error</h4><p>${result.error}</p>`;
+                } else {
+                    const prediction = result.prediction === 1;
+                    const probability = (result.probability * 100).toFixed(2);
+                    
+                    resultDiv.className = `prediction-result ${prediction ? 'prediction-positive' : 'prediction-negative'}`;
+                    resultDiv.innerHTML = `
+                        <h4>Prediction Result</h4>
+                        <p>Based on the provided information, the model predicts that you ${prediction ? 'may' : 'may not'} have diabetes.</p>
+                        <p>Confidence: ${probability}%</p>
+                        ${prediction ? 
+                            '<p class="text-danger"><strong>Important:</strong> Please consult with a healthcare professional for proper diagnosis and advice.</p>' : 
+                            '<p class="text-success">Keep maintaining a healthy lifestyle!</p>'
+                        }
+                    `;
+                }
+                
+                resultDiv.style.display = 'block';
+                resultDiv.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while making the prediction.');
+            }
+        });
+
+        document.getElementById('retrainButton').addEventListener('click', async () => {
+            try {
+                const button = document.getElementById('retrainButton');
+                button.disabled = true;
+                button.textContent = 'Retraining...';
+
+                const response = await fetch('/retrain', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert('Error retraining model: ' + result.error);
+                } else {
+                    alert('Model retrained successfully!');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while retraining the model.');
+            } finally {
+                const button = document.getElementById('retrainButton');
+                button.disabled = false;
+                button.textContent = 'Retrain Model';
+            }
+        });
+    </script>
+</body>
+</html>
